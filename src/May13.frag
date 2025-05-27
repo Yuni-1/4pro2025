@@ -3,17 +3,29 @@ precision highp float;
 out vec4 fragColor;
 uniform vec2 u_resolution;
 uniform float radius;
-uniform float alpha;
+uniform float wallZ;
+uniform float theta;
+
+float smin(float a,float b,float k){
+    k *= 16.0/3.0;
+    float h = max(k-abs(a-b),0.0)/k;
+    return min(a,b) - h*h*h*(0.4-h)*k*(1.0/16.0);
+    
+}
 
 float sdfSphere(vec3 pt, vec3 c, float r){
     return length(pt-c)-r;
 }
 
+float sdfPlane(vec3 pt, vec3 n, float d){
+    return dot(pt,n)-d;
+}
+
 float sdf(vec3 pt){
     float d1 = sdfSphere(pt,vec3(0.0,0.2,0.0),0.1*radius);
     float d2 = sdfSphere(pt,vec3(0.0,0.0,0.0),0.2*radius);
-    
-    return min(d1,d2);
+    float d3 = sdfPlane(pt,vec3(0.0,0.0,1.0),wallZ);
+    return smin(smin(d1,d2,0.01),d3,0.01);
 }
 vec3 rayStep(vec3 pt,vec3 ray){
     return pt+sdf(pt)*ray;//現在地からray方向に距離sdf(pt)だけ進む
@@ -37,14 +49,15 @@ vec3 sdfNormal(vec3 pt){//法線ベクトル
 
     return normalize(vec3(fx,fy,fz));
 }
+const float PI = 3.14159;
 
 void main(){
     vec2 p = gl_FragCoord.xy/u_resolution.x;
     p = 2.0*p - 1.0;
 
     vec3 light = vec3(0.0,100.0,100.0);
-    vec3 camera = vec3(0.0,0.0,10.0);//カメラの位置
-    vec3 cdir = vec3(0.0,0.0,-1.0);//視線の方向
+    vec3 camera = vec3(0.0,1.0,10.0);//カメラの位置
+    vec3 cdir = vec3(sin(PI*theta),0.0,-cos(PI*theta));//視線の方向
     vec3 updir = vec3(0.0,1.0,0.0);//カメラの角度
     float depth = 7.0;
     vec3 rightdir = cross(cdir,updir);
